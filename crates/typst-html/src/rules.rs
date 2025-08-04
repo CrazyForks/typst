@@ -17,7 +17,7 @@ use typst_library::text::{
     HighlightElem, LinebreakElem, OverlineElem, RawElem, RawLine, SmallcapsElem,
     SpaceElem, StrikeElem, SubElem, SuperElem, UnderlineElem,
 };
-use typst_library::visualize::ImageElem;
+use typst_library::visualize::{Color, ImageElem};
 
 use crate::{FrameElem, HtmlAttrs, HtmlElem, HtmlTag, attr, css, tag};
 
@@ -415,10 +415,31 @@ const RAW_RULE: ShowFn<RawElem> = |elem, _, styles| {
         seq.push(line.clone().pack());
     }
 
-    Ok(HtmlElem::new(if elem.block.get(styles) { tag::pre } else { tag::code })
+    let code = HtmlElem::new(tag::code)
         .with_body(Some(Content::sequence(seq)))
-        .pack())
+        .pack()
+        .spanned(elem.span());
+
+    Ok(if elem.block.get(styles) {
+        HtmlElem::new(tag::pre).with_body(Some(code)).pack()
+    } else {
+        code
+    })
 };
+
+/// This is used by `RawElem::synthesize` through a routine.
+///
+/// It's a temporary workaround until `TextElem::fill` is supported in HTML
+/// export.
+#[doc(hidden)]
+pub fn html_span_filled(content: Content, color: Color) -> Content {
+    let span = content.span();
+    HtmlElem::new(tag::span)
+        .with_styles(css::Properties::new().with("color", css::color(color)))
+        .with_body(Some(content))
+        .pack()
+        .spanned(span)
+}
 
 const RAW_LINE_RULE: ShowFn<RawLine> = |elem, _, _| Ok(elem.body.clone());
 
